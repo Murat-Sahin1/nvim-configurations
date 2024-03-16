@@ -84,6 +84,23 @@ I hope you enjoy your Neovim journey,
 P.S. You can delete this when you're done too. It's your config now! :)
 --]]
 
+-- Neovide Settings
+
+if vim.g.neovide then
+  -- Put anything you want to happen only in Neovide here
+  vim.o.guifont = 'FiraCode Nerd Font:h12' -- text below applies for VimScript
+  vim.g.neovide_hide_mouse_when_typing = true
+  vim.g.neovide_transparency = 0.85
+  vim.g.neovide_scroll_animation_length = 0.3
+  vim.g.neovide_refresh_rate = 60
+  vim.g.neovide_fullscreen = true
+  -- vim.g.neovide_cursor_animation_length = 0.13
+  -- vim.g.neovide_cursor_vfx_mode = 'pixiedust'
+  -- vim.g.neovide_profiler = true
+  -- vim.g.neovide_cursor_animate_in_insert_mode = true
+  vim.g.neovide_cursor_trail_size = 0.8
+end
+
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
@@ -91,7 +108,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +119,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, for help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -130,9 +147,6 @@ vim.opt.signcolumn = 'yes'
 
 -- Decrease update time
 vim.opt.updatetime = 250
-
--- Decrease mapped sequence wait time
--- Displays which-key popup sooner
 vim.opt.timeoutlen = 300
 
 -- Configure how new splits should be opened
@@ -212,7 +226,6 @@ if not vim.loop.fs_stat(lazypath) then
   vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
-
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -222,6 +235,7 @@ vim.opt.rtp:prepend(lazypath)
 --
 --  To update plugins, you can run
 --    :Lazy update
+--
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
@@ -237,6 +251,8 @@ require('lazy').setup({
   --  This is equivalent to:
   --    require('Comment').setup({})
 
+  -- { 'OmniSharp/omnisharp-vim' },
+  -- { 'prabirshrestha/asyncomplete.vim' },
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
 
@@ -413,10 +429,6 @@ require('lazy').setup({
       -- Useful status updates for LSP.
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
       { 'j-hui/fidget.nvim', opts = {} },
-
-      -- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
-      -- used for completion, annotations and signatures of Neovim apis
-      { 'folke/neodev.nvim', opts = {} },
     },
     config = function()
       -- Brief Aside: **What is LSP?**
@@ -539,9 +551,10 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
-        -- gopls = {},
+        clangd = {},
+        gopls = {},
         -- pyright = {},
+        --
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -552,12 +565,33 @@ require('lazy').setup({
         -- tsserver = {},
         --
 
+        omnisharp = {
+          capabilities = capabilities,
+          enable_roslyn_analysers = true,
+          enable_import_completion = true,
+          organize_imports_on_format = true,
+          enable_decompilation_support = true,
+          filetypes = { 'cs', 'vb', 'csproj', 'sln', 'slnx', 'props', 'csx', 'props', 'targets' },
+        },
+
         lua_ls = {
           -- cmd = {...},
           -- filetypes { ...},
           -- capabilities = {},
           settings = {
             Lua = {
+              runtime = { version = 'LuaJIT' },
+              workspace = {
+                checkThirdParty = false,
+                -- Tells lua_ls where to find all the Lua files that you have loaded
+                -- for your neovim configuration.
+                library = {
+                  '${3rd}/luv/library',
+                  unpack(vim.api.nvim_get_runtime_file('', true)),
+                },
+                -- If lua_ls is really slow on your computer, you can try this instead:
+                -- library = { vim.env.VIMRUNTIME },
+              },
               completion = {
                 callSnippet = 'Replace',
               },
@@ -585,6 +619,7 @@ require('lazy').setup({
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
+        ensure_installed = { 'omnisharp' },
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
@@ -599,20 +634,20 @@ require('lazy').setup({
     end,
   },
 
+  { -- Autopairs
+    'windwp/nvim-autopairs',
+    event = 'InsertEnter',
+    opts = {}, -- this is equalent to setup({}) function
+  },
+
   { -- Autoformat
     'stevearc/conform.nvim',
     opts = {
       notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
-        return {
-          timeout_ms = 500,
-          lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
-        }
-      end,
+      format_on_save = {
+        timeout_ms = 500,
+        lsp_fallback = true,
+      },
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
@@ -641,17 +676,6 @@ require('lazy').setup({
           end
           return 'make install_jsregexp'
         end)(),
-        dependencies = {
-          -- `friendly-snippets` contains a variety of premade snippets.
-          --    See the README about individual language/framework/plugin snippets:
-          --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
-        },
       },
       'saadparwaiz1/cmp_luasnip',
 
@@ -660,6 +684,12 @@ require('lazy').setup({
       --  into multiple repos for maintenance purposes.
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
+
+      -- If you want to add a bunch of pre-configured snippets,
+      --    you can use this plugin to help you. It even has snippets
+      --    for various frameworks/libraries/etc. but you will have to
+      --    set up the ones that are useful for you.
+      -- 'rafamadriz/friendly-snippets',
     },
     config = function()
       -- See `:help cmp`
@@ -684,10 +714,6 @@ require('lazy').setup({
           ['<C-n>'] = cmp.mapping.select_next_item(),
           -- Select the [p]revious item
           ['<C-p>'] = cmp.mapping.select_prev_item(),
-
-          -- scroll the documentation window [b]ack / [f]orward
-          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-          ['<C-f>'] = cmp.mapping.scroll_docs(4),
 
           -- Accept ([y]es) the completion.
           --  This will auto-import if your LSP supports it.
@@ -717,9 +743,6 @@ require('lazy').setup({
               luasnip.jump(-1)
             end
           end, { 'i', 's' }),
-
-          -- For more advanced luasnip keymaps (e.g. selecting choice nodes, expansion) see:
-          --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
         },
         sources = {
           { name = 'nvim_lsp' },
@@ -796,14 +819,8 @@ require('lazy').setup({
       ensure_installed = { 'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
+      highlight = { enable = true },
+      indent = { enable = true },
     },
     config = function(_, opts)
       -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
