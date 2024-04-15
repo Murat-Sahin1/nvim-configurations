@@ -90,10 +90,10 @@ if vim.g.neovide then
   -- Put anything you want to happen only in Neovide here
   vim.o.guifont = 'FiraCode Nerd Font:h12' -- text below applies for VimScript
   vim.g.neovide_hide_mouse_when_typing = true
-  vim.g.neovide_transparency = 0.85
+  -- vim.g.neovide_transparency = 0.85
   vim.g.neovide_scroll_animation_length = 0.3
   vim.g.neovide_refresh_rate = 60
-  vim.g.neovide_fullscreen = true
+  -- vim.g.neovide_fullscreen = true
   -- vim.g.neovide_cursor_animation_length = 0.13
   -- vim.g.neovide_cursor_vfx_mode = 'pixiedust'
   -- vim.g.neovide_profiler = true
@@ -555,7 +555,13 @@ require('lazy').setup({
         gopls = {},
         -- pyright = {},
         --
-        -- rust_analyzer = {},
+        rust_analyzer = {
+          ['rust-analyzer'] = {
+            diagnostics = {
+              enable = true;
+            },
+          },
+        },
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -816,9 +822,9 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'html', 'lua', 'markdown' },
       -- Autoinstall languages that are not installed
-      auto_install = true,
+      auto_install = false,
       highlight = { enable = true },
       indent = { enable = true },
     },
